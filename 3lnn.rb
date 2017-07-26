@@ -1,77 +1,90 @@
 require 'nmatrix'
 require 'pp'
+# This creates a 3 Layer Neural Network
+class NeuralNetwork
+  # input data, first three terms are votes, fourth term is bias
+  # rule is majority wins
+  INPUT_DATA = N[[0, 0, 0, 1],
+                 [0, 1, 1, 1],
+                 [0, 1, 0, 1],
+                 [1, 0, 0, 1],
+                 [1, 1, 0, 1],
+                 [1, 1, 1, 1]]
 
-# sigmoid chosen as non-linear function
-# takes derivative if derivative == true
-def nonlin(x, derivative = false)
-  if derivative
-    x * (-x + 1)
-  else
-    x.map! { |y| 1 / (1 + Math.exp(-1 * y)) }
-    x
+  # output data of majority wins
+  OUTPUT_DATA = N[[0],
+                  [1],
+                  [0],
+                  [0],
+                  [1],
+                  [1]]
+
+  # test data
+  TEST_DATA = N[[0, 0, 1, 1],
+                [1, 0, 1, 1]]
+
+  # test data output should be
+  # TEST_OUTPUT_DATA = N[[0],
+  #                     [1]]
+
+  def initialize(input = INPUT_DATA, output = OUTPUT_DATA, test = TEST_DATA)
+    @input = input
+    @output = output
+    @test = test
+    elements = @input.shape[1]
+    nodes = @input.shape[1] * 2
+    srand 1 # seeds random
+    @synapse0 = NMatrix.new([elements, nodes], Array
+                            .new(elements * nodes) { (2 * rand) - 1 })
+    @synapse1 = NMatrix.new([nodes, 1], Array.new(nodes) { (2 * rand) - 1 })
+  end
+
+  def train_data(iterations = 100_000, report_percentage = 10)
+    (1..iterations).each do |i|
+      moving_forward(@input)
+      back_propagation(iterations, i, report_percentage)
+    end
+    puts "Output after training: #{pp @layer2}"
+  end
+
+  def test_data(test = @test)
+    moving_forward(test)
+    puts "Output of tests: #{pp @layer2}"
+  end
+
+  private
+
+  # sigmoid chosen as non-linear function
+  # takes derivative if derivative == true
+  def nonlin(x, derivative = false)
+    if derivative
+      x * (-x + 1)
+    else
+      x.map! { |y| 1 / (1 + Math.exp(-1 * y)) }
+      x
+    end
+  end
+
+  def moving_forward(input)
+    @input_layer = input
+    @layer1 = nonlin(@input_layer.dot(@synapse0))
+    @layer2 = nonlin(@layer1.dot(@synapse1))
+  end
+
+  def back_propagation(iterations, i, report_percentage)
+    layer2_error = @output - @layer2
+
+    report(iterations, i, report_percentage)
+
+    layer2_delta = layer2_error * nonlin(@layer2, true)
+    layer1_error = layer2_delta.dot(@synapse1.transpose)
+    layer1_delta = layer1_error * nonlin(@layer1, true)
+    # update weights
+    @synapse1 += @layer1.transpose.dot(layer2_delta)
+    @synapse0 += @input_layer.transpose.dot(layer1_delta)
+  end
+
+  def report(iterations, i, reportp)
+    puts "Error: #{layer2_error.abs.mean}" if (i % (iterations / reportp)).zero?
   end
 end
-
-# input data, first three terms are votes, fourth term is bias
-# rule is majority wins
-INPUT_DATA = N[[0, 0, 0, 1],
-               [0, 1, 1, 1],
-               [0, 1, 0, 1],
-               [1, 0, 0, 1],
-               [1, 1, 0, 1],
-               [1, 1, 1, 1]]
-
-# output data of majority wins
-OUTPUT_DATA = N[[0],
-                [1],
-                [0],
-                [0],
-                [1],
-                [1]]
-
-# test data
-TEST_DATA = N[[0, 0, 1, 1],
-              [1, 0, 1, 1]]
-
-# test data output should be
-# TEST_OUTPUT_DATA = N[[0],
-#                     [1]]
-
-# seeds random
-srand 1
-
-# each sample has 3 inputs plus a bias term.
-# the sample is moving to a hidden layer with 4 nodes
-# therefore we need a 3x4 Matrix filleds with random weights to start
-synapse_in_to_layer1 = NMatrix.new([4, 4], Array.new(16) { (2 * rand) - 1 })
-
-# the 4 hidden layers go to one output
-synapse_layer1_to_layer2 = NMatrix.new([4, 1], Array.new(4) { (2 * rand) - 1 })
-
-# training
-(1..100_000).each do |i|
-  # moving forward through NN
-  input_layer = INPUT_DATA
-  layer1 = nonlin(input_layer.dot(synapse_in_to_layer1))
-  @layer2 = nonlin(layer1.dot(synapse_layer1_to_layer2))
-
-  # back propagation
-  layer2_error = OUTPUT_DATA - @layer2
-
-  # how often to show error rate
-  puts "Error: #{layer2_error.abs.mean}" if (i % 10_000).zero?
-
-  layer2_delta = layer2_error * nonlin(@layer2, true)
-  layer1_error = layer2_delta.dot(synapse_layer1_to_layer2.transpose)
-  layer1_delta = layer1_error * nonlin(layer1, true)
-
-  # update weights
-  synapse_layer1_to_layer2 += layer1.transpose.dot(layer2_delta)
-  synapse_in_to_layer1 += input_layer.transpose.dot(layer1_delta)
-end
-
-puts "Output after training: #{pp @layer2}"
-
-input_layer = TEST_DATA
-layer1 = nonlin(input_layer.dot(synapse_in_to_layer1))
-pp @layer2 = nonlin(layer1.dot(synapse_layer1_to_layer2)).round
