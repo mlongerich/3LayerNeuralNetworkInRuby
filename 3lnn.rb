@@ -12,29 +12,41 @@ def nonlin(x, derivative = false)
   end
 end
 
-# input data, first two terms are possible inputs, third term is bias
-# is xor there are only 4 possible values if two items
-INPUT_DATA = N[[0, 0, 1],
-               [0, 1, 1],
-               [1, 0, 1],
-               [1, 1, 1]]
+# input data, first three terms are votes, fourth term is bias
+# rule is majority wins
+INPUT_DATA = N[[0, 0, 0, 1],
+               [0, 1, 1, 1],
+               [0, 1, 0, 1],
+               [1, 0, 0, 1],
+               [1, 1, 0, 1],
+               [1, 1, 1, 1]]
 
-# output data of xor
+# output data of majority wins
 OUTPUT_DATA = N[[0],
                 [1],
+                [0],
+                [0],
                 [1],
-                [0]]
+                [1]]
+
+# test data
+TEST_DATA = N[[0, 0, 1, 1],
+              [1, 0, 1, 1]]
+
+# test data output should be
+# TEST_OUTPUT_DATA = N[[0],
+#                     [1]]
 
 # seeds random
 srand 1
 
-# each sample has 2 inputs plus a bias term.
+# each sample has 3 inputs plus a bias term.
 # the sample is moving to a hidden layer with 4 nodes
 # therefore we need a 3x4 Matrix filleds with random weights to start
-synapse_in_to_layer1 = NMatrix.new([3, 4], Array.new(6) { (2 * rand) - 1 })
+synapse_in_to_layer1 = NMatrix.new([4, 4], Array.new(16) { (2 * rand) - 1 })
 
 # the 4 hidden layers go to one output
-synapse_layer1_to_layer2 = NMatrix.new([4, 1], Array.new(6) { (2 * rand) - 1 })
+synapse_layer1_to_layer2 = NMatrix.new([4, 1], Array.new(4) { (2 * rand) - 1 })
 
 # training
 (1..100_000).each do |i|
@@ -59,3 +71,7 @@ synapse_layer1_to_layer2 = NMatrix.new([4, 1], Array.new(6) { (2 * rand) - 1 })
 end
 
 puts "Output after training: #{pp @layer2}"
+
+input_layer = TEST_DATA
+layer1 = nonlin(input_layer.dot(synapse_in_to_layer1))
+pp @layer2 = nonlin(layer1.dot(synapse_layer1_to_layer2)).round
